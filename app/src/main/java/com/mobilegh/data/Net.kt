@@ -448,9 +448,26 @@ fun repoFileDownloadUrl(owner: String, name: String, ref: String, path: String, 
     if (isPrivate) "https://raw.githubusercontent.com/$owner/$name/$ref/$path"
     else "https://github.com/$owner/$name/raw/$ref/$path"
 
-/** Actions 产物端点只接受 JSON 的 Accept（发 octet-stream 会得 415），其余下载端点要 octet-stream */
+/**
+ * 源码压缩包（zip）下载地址。
+ *
+ * 公开仓库走网页 archive 地址，转发类加速节点同样能改写；私有仓库换成 API 的
+ * zipball 端点，和 raw 一样带 Token 请求网页地址不可靠。
+ * 压缩包是 GitHub 收到请求时现打包的，地址本身不能预测大小。
+ */
+fun repoZipDownloadUrl(owner: String, name: String, ref: String, isPrivate: Boolean): String =
+    if (isPrivate) "https://api.github.com/repos/$owner/$name/zipball/$ref"
+    else "https://github.com/$owner/$name/archive/$ref.zip"
+
+/**
+ * 私有下载要发的 Accept。
+ *
+ * Actions 产物和源码打包端点都只接受 JSON（源码打包端发 octet-stream 会得 415，
+ * 实测 API 会直接拒绝整个请求），其余下载端点要 octet-stream。
+ */
 fun privateDownloadAccept(url: String): String =
-    if (url.contains("/actions/artifacts/")) "application/vnd.github+json" else "application/octet-stream"
+    if (url.contains("/actions/artifacts/") || url.contains("/zipball/") || url.contains("/tarball/")) "application/vnd.github+json"
+    else "application/octet-stream"
 
 /**
  * 下载地址按节点排序：上次成功的 → 当前选中的 → 测速快的 → 未测速的 → 失败过的，
